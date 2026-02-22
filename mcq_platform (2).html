@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Flow</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px; color: #2d3748;
+        }
+        .header { text-align: center; margin-bottom: 40px; color: white; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white; padding: 6px 16px; border-radius: 20px;
+            font-size: 0.4em; font-weight: 600; margin-left: 10px; vertical-align: middle;
+        }
+        .container {
+            max-width: 1200px; margin: 0 auto; background: white;
+            padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .input-section {
+            background: #f7fafc; padding: 25px; border-radius: 12px;
+            margin-bottom: 30px; border: 1px solid #e2e8f0;
+        }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #4a5568; }
+        input[type="text"], input[type="file"] {
+            width: 100%; padding: 12px 16px;
+            border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;
+        }
+        input[type="file"] { border-style: dashed; cursor: pointer; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; padding: 12px 30px;
+            border-radius: 8px; font-size: 1em; font-weight: 600;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.6); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-download { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+
+        .mcq {
+            background: white; border: 2px solid #e2e8f0;
+            padding: 25px; margin-bottom: 25px; border-radius: 12px;
+        }
+        .mcq-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 15px 20px;
+            margin: -25px -25px 20px -25px;
+            border-radius: 10px 10px 0 0; font-size: 1.2em; font-weight: 600;
+        }
+        .question-text {
+            background: #f7fafc; padding: 20px; border-radius: 8px;
+            margin-bottom: 20px; border-left: 4px solid #667eea; line-height: 1.6;
+        }
+        .stem {
+            padding: 15px; margin-bottom: 12px;
+            background: #fff; border: 2px solid #e2e8f0; border-radius: 8px;
+        }
+        .stem-header { font-weight: 600; color: #667eea; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .stem-letter {
+            background: #667eea; color: white; width: 28px; height: 28px;
+            border-radius: 50%; display: inline-flex; align-items: center;
+            justify-content: center; font-weight: 700;
+        }
+        .stem-text { color: #4a5568; margin-bottom: 12px; line-height: 1.5; padding-left: 36px; }
+        .stem-options { display: flex; gap: 20px; align-items: center; padding-left: 36px; }
+        .stem-options label { display: inline-flex; align-items: center; margin: 0; cursor: pointer; font-weight: normal; }
+        input[type="radio"] { margin-right: 6px; cursor: pointer; width: 18px; height: 18px; }
+        .deselect-btn { background: #fc8181; padding: 6px 16px; font-size: 0.85em; }
+
+        .results {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white; padding: 25px; border-radius: 12px;
+            margin-top: 30px; font-size: 1.3em;
+            text-align: center; font-weight: 600; display: none;
+        }
+        .results.show { display: block; }
+        .feedback { margin-top: 30px; display: none; }
+        .feedback.show { display: block; }
+        .fb-mcq {
+            background: white; border: 2px solid #e2e8f0;
+            border-radius: 12px; margin-bottom: 28px; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .fb-mcq-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 14px 22px;
+            font-size: 1.1em; font-weight: 700;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .fb-score-badge {
+            background: rgba(255,255,255,0.25);
+            padding: 4px 14px; border-radius: 20px; font-size: 0.9em;
+        }
+        .fb-question {
+            background: #f7fafc; padding: 16px 22px;
+            border-left: 5px solid #667eea;
+            font-size: 0.97em; line-height: 1.7; color: #2d3748;
+        }
+        .fb-stems { padding: 16px 22px; display: flex; flex-direction: column; gap: 10px; }
+        .fb-stem { border-radius: 8px; overflow: hidden; border-left: 5px solid #ccc; }
+        .fb-stem-inner { padding: 12px 16px; }
+        .fb-stem-q { font-size: 0.9em; color: inherit; margin-bottom: 6px; line-height: 1.5; }
+        .fb-stem-status { font-weight: 700; font-size: 0.95em; margin-bottom: 4px; }
+        .fb-explanation {
+            margin-top: 8px; padding: 10px 12px;
+            background: rgba(255,255,255,0.45); border-radius: 6px;
+            font-size: 0.87em; font-style: italic; line-height: 1.6;
+        }
+        .correct   { background: #c6f6d5; color: #22543d; border-left-color: #48bb78 !important; }
+        .incorrect { background: #fed7d7; color: #742a2a; border-left-color: #fc8181 !important; }
+        .unattempted { background: #feebc8; color: #744210; border-left-color: #ed8936 !important; }
+        .no-key    { background: #e2e8f0; color: #4a5568; border-left-color: #a0aec0 !important; }
+
+        .message { padding: 15px; border-radius: 8px; margin: 15px 0; display: none; }
+        .message.success { background: #f0fff4; border-left: 4px solid #48bb78; color: #22543d; display: block; }
+        .message.error   { background: #fff5f5; border-left: 4px solid #f56565; color: #742a2a; display: block; }
+        .info-banner {
+            background: #ebf8ff; border: 2px solid #63b3ed; border-left: 4px solid #3182ce;
+            padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;
+            color: #2b6cb0; font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 MCQ Practice Platform <span class="badge">CSV ANSWERS</span></h1>
+        <p>Upload your combined MCQ + Answer CSV to start practicing</p>
+    </div>
+
+    <div class="container">
+        <div class="info-banner">
+            ℹ️ Upload a CSV containing <strong>Questions, Options, and Reviews (answers + explanations)</strong>. Answers are taken directly from the CSV — no AI required.
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <label for="topicName">📖 Topic Name</label>
+                <input type="text" id="topicName" placeholder="e.g., Neurology – Stroke & Movement Disorders">
+            </div>
+            <div class="input-group">
+                <label for="questionsFile">📄 Upload Combined CSV (Questions + Answers)</label>
+                <input type="file" id="questionsFile" accept=".csv" onchange="handleFileUpload(event)">
+            </div>
+            <button onclick="loadMCQs()" style="width:100%;">📚 Load MCQs</button>
+        </div>
+
+        <div id="message"></div>
+        <div id="mcqs"></div>
+
+        <div class="input-section" id="submitSection" style="display:none;">
+            <div style="text-align:center;">
+                <button onclick="evaluateAnswers()" style="font-size:1.1em;padding:15px 40px;">
+                    📝 Submit &amp; See Results
+                </button>
+            </div>
+        </div>
+
+        <div class="results" id="results"></div>
+        <div class="feedback" id="feedback"></div>
+
+        <div style="text-align:center;margin-top:24px;display:none;" id="downloadSection">
+            <button class="btn-download" onclick="downloadWordDoc()">
+                💾 Download Results as Word Document
+            </button>
+        </div>
+    </div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   PURE-JS MINIMAL ZIP / DOCX BUILDER
+   No external libraries required.
+   ═══════════════════════════════════════════════════ */
+
+// ── CRC32 table ──
+const CRC32_TABLE = (function(){
+    const t = new Uint32Array(256);
+    for (let i=0;i<256;i++){
+        let c=i;
+        for(let j=0;j<8;j++) c = (c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+        t[i]=c;
+    }
+    return t;
+})();
+
+function crc32(bytes){
+    let c=0xFFFFFFFF;
+    for(let i=0;i<bytes.length;i++) c=CRC32_TABLE[(c^bytes[i])&0xFF]^(c>>>8);
+    return (c^0xFFFFFFFF)>>>0;
+}
+
+function strToBytes(str){
+    return new TextEncoder().encode(str);
+}
+
+function uint16LE(n){ return [n&0xFF,(n>>8)&0xFF]; }
+function uint32LE(n){ return [n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF]; }
+
+function deflateRaw(data){
+    // We store uncompressed (method=0) — universally supported
+    const BSIZE=65535;
+    const chunks=[];
+    let offset=0;
+    while(offset<data.length){
+        const end=Math.min(offset+BSIZE,data.length);
+        const block=data.slice(offset,end);
+        const last=(end===data.length)?1:0;
+        chunks.push(last,block.length&0xFF,(block.length>>8)&0xFF,(~block.length)&0xFF,((~block.length)>>8)&0xFF);
+        for(let i=0;i<block.length;i++) chunks.push(block[i]);
+        offset=end;
+    }
+    return new Uint8Array(chunks);
+}
+
+function buildZip(files){
+    // files: [{name, data(Uint8Array)}]
+    const centralDir=[];
+    const localChunks=[];
+    let offset=0;
+
+    files.forEach(({name,data})=>{
+        const nameBytes=strToBytes(name);
+        const crc=crc32(data);
+        const compressed=deflateRaw(data);
+        const method=0; // store
+
+        // Local file header
+        const lfh=[
+            0x50,0x4B,0x03,0x04, // signature
+            0x14,0x00,            // version needed
+            0x00,0x00,            // flags
+            ...uint16LE(method),
+            0x00,0x00,0x00,0x00,  // mod time/date
+            ...uint32LE(crc),
+            ...uint32LE(data.length), // compressed size (stored = uncompressed)
+            ...uint32LE(data.length),
+            ...uint16LE(nameBytes.length),
+            0x00,0x00,            // extra length
+        ];
+
+        const localStart=offset;
+        localChunks.push(new Uint8Array(lfh));
+        localChunks.push(nameBytes);
+        localChunks.push(data); // store uncompressed
+        offset+=lfh.length+nameBytes.length+data.length;
+
+        // Central directory entry
+        centralDir.push(new Uint8Array([
+            0x50,0x4B,0x01,0x02,
+            0x14,0x00,0x14,0x00,
+            0x00,0x00,
+            ...uint16LE(method),
+            0x00,0x00,0x00,0x00,
+            ...uint32LE(crc),
+            ...uint32LE(data.length),
+            ...uint32LE(data.length),
+            ...uint16LE(nameBytes.length),
+            0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,
+            ...uint32LE(localStart),
+        ]));
+        centralDir.push(nameBytes);
+    });
+
+    const cdOffset=offset;
+    const cdBytes=merge(centralDir);
+    const cdSize=cdBytes.length;
+
+    const eocd=new Uint8Array([
+        0x50,0x4B,0x05,0x06,
+        0x00,0x00,0x00,0x00,
+        ...uint16LE(files.length),
+        ...uint16LE(files.length),
+        ...uint32LE(cdSize),
+        ...uint32LE(cdOffset),
+        0x00,0x00,
+    ]);
+
+    return merge([...localChunks,cdBytes,eocd]);
+}
+
+function merge(arrays){
+    let total=0;
+    arrays.forEach(a=>total+=a.length);
+    const out=new Uint8Array(total);
+    let off=0;
+    arrays.forEach(a=>{out.set(a,off);off+=a.length;});
+    return out;
+}
+
+/* ── XML escape ── */
+function xe(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ═══════════════════════════════════════════════════
+   DOCX BUILDER
+   ═══════════════════════════════════════════════════ */
+
+function hexToWMLColor(hex){ return hex.replace('#',''); }
+
+function wmlParagraph(runs, opts={}){
+    const pPrParts=[];
+
+    if(opts.fill){
+        pPrParts.push(`<w:shd w:val="clear" w:color="auto" w:fill="${opts.fill}"/>`);
+    }
+    if(opts.spacing){
+        const {before=0,after=160}=opts.spacing;
+        pPrParts.push(`<w:spacing w:before="${before}" w:after="${after}"/>`);
+    }
+    if(opts.indent){
+        const {left=0,right=0}=opts.indent;
+        pPrParts.push(`<w:ind w:left="${left}" w:right="${right}"/>`);
+    }
+    if(opts.align){
+        pPrParts.push(`<w:jc w:val="${opts.align}"/>`);
+    }
+    const borders=[];
+    if(opts.borderLeft)  borders.push(`<w:left  w:val="thick" w:sz="${opts.borderLeft.sz||18}"  w:space="0" w:color="${opts.borderLeft.color}"/>`);
+    if(opts.borderBottom)borders.push(`<w:bottom w:val="single" w:sz="${opts.borderBottom.sz||4}" w:space="0" w:color="${opts.borderBottom.color}"/>`);
+    if(opts.borderTop)   borders.push(`<w:top w:val="single" w:sz="${opts.borderTop.sz||6}" w:space="0" w:color="${opts.borderTop.color}"/>`);
+    if(borders.length)   pPrParts.push(`<w:pBdr>${borders.join('')}</w:pBdr>`);
+
+    const pPr = pPrParts.length ? `<w:pPr>${pPrParts.join('')}</w:pPr>` : '';
+    return `<w:p>${pPr}${runs.join('')}</w:p>`;
+}
+
+function wmlRun(text, opts={}){
+    const rPrParts=[];
+    if(opts.bold)    rPrParts.push('<w:b/>');
+    if(opts.italics) rPrParts.push('<w:i/>');
+    if(opts.size)    rPrParts.push(`<w:sz w:val="${opts.size}"/><w:szCs w:val="${opts.size}"/>`);
+    if(opts.color)   rPrParts.push(`<w:color w:val="${opts.color}"/>`);
+    if(opts.font)    rPrParts.push(`<w:rFonts w:ascii="${opts.font}" w:hAnsi="${opts.font}" w:cs="${opts.font}"/>`);
+    const rPr=rPrParts.length?`<w:rPr>${rPrParts.join('')}</w:rPr>`:'';
+    const escaped=xe(text);
+    const space=text.startsWith(' ')||text.endsWith(' ')?' xml:space="preserve"':'';
+    return `<w:r>${rPr}<w:t${space}>${escaped}</w:t></w:r>`;
+}
+
+function buildDocx(paragraphs){
+    const contentTypes=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+    const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+    const wordRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`;
+
+    const document=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">
+  <w:body>
+    ${paragraphs.join('\n    ')}
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+    const files=[
+        {name:'[Content_Types].xml', data:strToBytes(contentTypes)},
+        {name:'_rels/.rels',         data:strToBytes(rels)},
+        {name:'word/_rels/document.xml.rels', data:strToBytes(wordRels)},
+        {name:'word/document.xml',   data:strToBytes(document)},
+    ];
+    return buildZip(files);
+}
+
+/* ═══════════════════════════════════════════════════
+   APP LOGIC
+   ═══════════════════════════════════════════════════ */
+let questionsData=[], answersData={}, lastEvalResults=[], lastScore={total:0,max:0};
+const stemLetters=['A','B','C','D','E'];
+
+function handleFileUpload(e){
+    const file=e.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>parseCSV(ev.target.result);
+    reader.readAsText(file);
+}
+
+function parseCSV(content){
+    function parseLine(line){
+        const res=[]; let cur=''; let inQ=false;
+        for(let i=0;i<line.length;i++){
+            const c=line[i];
+            if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+            else if(c===','&&!inQ){res.push(cur.trim());cur='';}
+            else cur+=c;
+        }
+        res.push(cur.trim()); return res;
+    }
+    const rawLines=[]; let buf=''; let inQ=false;
+    for(let i=0;i<content.length;i++){
+        const c=content[i];
+        if(c==='"') inQ=!inQ;
+        if((c==='\n'||c==='\r')&&!inQ){
+            if(buf.trim()) rawLines.push(buf);
+            buf=''; if(c==='\r'&&content[i+1]==='\n') i++;
+        } else buf+=c;
+    }
+    if(buf.trim()) rawLines.push(buf);
+
+    questionsData=[]; answersData=[]; answersData={}; let cur=null;
+    for(let i=1;i<rawLines.length;i++){
+        const cols=parseLine(rawLines[i]);
+        if(cols.length<3) continue;
+        const mcqNum=parseInt(cols[0]);
+        const type=(cols[1]||'').trim();
+        const label=(cols[2]||'').trim();
+        const text=(cols[3]||'').trim();
+        const tf=(cols[4]||'').trim();
+        const expl=(cols[5]||'').trim();
+        if(isNaN(mcqNum)) continue;
+        if(type==='Question'){cur={number:mcqNum,question:text,stems:[]};questionsData.push(cur);}
+        else if(type==='Option'){if(cur&&cur.number===mcqNum)cur.stems.push({number:stemLetters.indexOf(label)+1,letter:label,text});}
+        else if(type==='Review'){answersData[`${mcqNum}_${label}`]={answer:tf.charAt(0).toUpperCase()==='T'?'T':'F',explanation:expl};}
+    }
+    showMessage(`✅ Loaded ${questionsData.length} MCQ(s) with ${Object.keys(answersData).length} answer(s).`,'success');
+}
+
+function loadMCQs(){
+    if(!document.getElementById('topicName').value.trim()){showMessage('❌ Please enter a topic name.','error');return;}
+    if(!questionsData.length){showMessage('❌ Please upload the CSV file first.','error');return;}
+    displayMCQs();
+    showMessage('✅ MCQs loaded! Answer each option then click Submit.','success');
+}
+
+function displayMCQs(){
+    const div=document.getElementById('mcqs'); div.innerHTML='';
+    questionsData.forEach(mcq=>{
+        const d=document.createElement('div'); d.className='mcq';
+        let h=`<div class="mcq-header">MCQ ${mcq.number}</div>
+               <div class="question-text"><strong>Question:</strong> ${mcq.question}</div>`;
+        mcq.stems.forEach(s=>{
+            h+=`<div class="stem">
+                  <div class="stem-header"><span class="stem-letter">${s.letter}</span><span>Option ${s.letter}</span></div>
+                  <div class="stem-text">${s.text}</div>
+                  <div class="stem-options">
+                    <label><input type="radio" name="mcq${mcq.number}stem${s.number}" value="T"> True</label>
+                    <label><input type="radio" name="mcq${mcq.number}stem${s.number}" value="F"> False</label>
+                    <button class="deselect-btn" onclick="desel('mcq${mcq.number}stem${s.number}')">Clear</button>
+                  </div>
+                </div>`;
+        });
+        d.innerHTML=h; div.appendChild(d);
+    });
+    document.getElementById('submitSection').style.display='block';
+}
+
+function desel(name){document.getElementsByName(name).forEach(r=>r.checked=false);}
+
+function evaluateAnswers(){
+    if(!Object.keys(answersData).length){showMessage('❌ No answers found in CSV.','error');return;}
+    const topicName=document.getElementById('topicName').value.trim();
+    let totalScore=0,totalMax=0;
+    lastEvalResults=[];
+
+    questionsData.forEach(mcq=>{
+        const res={number:mcq.number,question:mcq.question,stems:[],score:0,maxScore:0};
+        let mcqScore=0;
+        mcq.stems.forEach(stem=>{
+            const key=`${mcq.number}_${stem.letter}`;
+            const ai=answersData[key];
+            const correct=ai?ai.answer:null;
+            const expl=ai?ai.explanation:'';
+            let sel=null;
+            document.getElementsByName(`mcq${mcq.number}stem${stem.number}`).forEach(r=>{if(r.checked)sel=r.value.toUpperCase();});
+            let status,css;
+            if(!correct){status='No answer key in CSV';css='no-key';}
+            else if(!sel){status=`Unattempted  (Correct: ${correct==='T'?'True':'False'})`;css='unattempted';}
+            else if(sel===correct){status='Correct ✓';css='correct';mcqScore++;}
+            else{status=`Incorrect ✗  (Correct: ${correct==='T'?'True':'False'})`;css='incorrect';mcqScore--;}
+            if(correct){totalMax++;res.maxScore++;}
+            res.stems.push({letter:stem.letter,text:stem.text,status,css,explanation:expl,correct,selected:sel});
+        });
+        if(mcqScore<0)mcqScore=0;
+        totalScore+=mcqScore; res.score=mcqScore;
+        lastEvalResults.push(res);
+    });
+
+    lastScore={total:totalScore,max:totalMax};
+    const pct=totalMax>0?((totalScore/totalMax)*100).toFixed(2):'0.00';
+
+    const rb=document.getElementById('results');
+    rb.innerHTML=`<strong>${topicName}</strong><br>Score: ${totalScore}/${totalMax} (${pct}%)`;
+    rb.classList.add('show');
+
+    const fb=document.getElementById('feedback');
+    let html='';
+    lastEvalResults.forEach(r=>{
+        html+=`<div class="fb-mcq">
+            <div class="fb-mcq-header">
+                <span>MCQ ${r.number}</span>
+                <span class="fb-score-badge">${r.score}/${r.maxScore}</span>
+            </div>
+            <div class="fb-question"><strong>Q:</strong> ${r.question}</div>
+            <div class="fb-stems">`;
+        r.stems.forEach(s=>{
+            html+=`<div class="fb-stem ${s.css}">
+                <div class="fb-stem-inner">
+                    <div class="fb-stem-q"><strong>${s.letter}.</strong> ${s.text}</div>
+                    <div class="fb-stem-status">${s.status}</div>
+                    ${s.explanation?`<div class="fb-explanation">💡 ${s.explanation}</div>`:''}
+                </div></div>`;
+        });
+        html+=`</div></div>`;
+    });
+    fb.innerHTML=html; fb.classList.add('show');
+    document.getElementById('downloadSection').style.display='block';
+    rb.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+/* ═══════════════════════════════════════════════════
+   WORD DOWNLOAD
+   ═══════════════════════════════════════════════════ */
+function downloadWordDoc(){
+    if(!lastEvalResults.length){alert('Please submit answers first.');return;}
+
+    const topicName=document.getElementById('topicName').value.trim()||'MCQ Results';
+    const pct=lastScore.max>0?((lastScore.total/lastScore.max)*100).toFixed(2):'0.00';
+
+    const PALETTE={
+        correct:   {bg:'C6F6D5',text:'22543D',accent:'48BB78'},
+        incorrect: {bg:'FED7D7',text:'742A2A',accent:'FC8181'},
+        unattempted:{bg:'FEEBC8',text:'744210',accent:'ED8936'},
+        'no-key':  {bg:'E2E8F0',text:'4A5568',accent:'A0AEC0'},
+    };
+    const PURPLE='667EEA', WHITE='FFFFFF', FONT='Arial';
+
+    function R(text,opts={}){return wmlRun(text,{font:FONT,...opts});}
+    const paras=[];
+
+    // Title
+    paras.push(wmlParagraph(
+        [R(topicName,{bold:true,size:44,color:'2D3748'})],
+        {align:'center',spacing:{before:0,after:160}}
+    ));
+    // Score
+    paras.push(wmlParagraph(
+        [R(`Score: ${lastScore.total} / ${lastScore.max}  (${pct}%)`,{bold:true,size:28,color:'276749'})],
+        {align:'center',spacing:{before:0,after:480}}
+    ));
+    // Date
+    paras.push(wmlParagraph(
+        [R(`Generated: ${new Date().toLocaleDateString()}`,{size:18,color:'A0AEC0',italics:true})],
+        {align:'center',spacing:{before:0,after:480}}
+    ));
+
+    lastEvalResults.forEach((mcq,idx)=>{
+        // MCQ header bar
+        paras.push(wmlParagraph(
+            [R(`MCQ ${mcq.number}`,{bold:true,size:26,color:WHITE}),
+             R(`   ${mcq.score}/${mcq.maxScore}`,{size:22,color:'D6BCFA'})],
+            {fill:PURPLE,indent:{left:160,right:160},
+             spacing:{before:idx===0?0:320,after:0},
+             borderTop:{color:PURPLE},borderLeft:null}
+        ));
+        // Question
+        paras.push(wmlParagraph(
+            [R('Q: ',{bold:true,size:22,color:'2D3748'}),
+             R(mcq.question,{size:22,color:'2D3748'})],
+            {fill:'F0F4FF',indent:{left:160,right:160},spacing:{before:0,after:0},
+             borderLeft:{color:PURPLE,sz:20}}
+        ));
+        // Gap
+        paras.push(wmlParagraph([R('')],{spacing:{before:0,after:60}}));
+
+        mcq.stems.forEach((stem,si)=>{
+            const pal=PALETTE[stem.css]||PALETTE['no-key'];
+            const isLast=si===mcq.stems.length-1;
+            const base={fill:pal.bg,indent:{left:300,right:160},borderLeft:{color:pal.accent,sz:18}};
+
+            // Option text
+            paras.push(wmlParagraph(
+                [R(`${stem.letter}.  `,{bold:true,size:21,color:pal.text}),
+                 R(stem.text,{size:21,color:pal.text,italics:true})],
+                {...base,spacing:{before:0,after:0}}
+            ));
+            // Status
+            paras.push(wmlParagraph(
+                [R(stem.status,{bold:true,size:21,color:pal.text})],
+                {...base,spacing:{before:0,after:0}}
+            ));
+            // Explanation
+            const afterSpace=isLast?140:60;
+            if(stem.explanation){
+                paras.push(wmlParagraph(
+                    [R('Explanation: ',{bold:true,size:19,color:pal.text}),
+                     R(stem.explanation,{size:19,color:pal.text,italics:true})],
+                    {...base,spacing:{before:0,after:afterSpace},
+                     ...(isLast?{borderBottom:{color:pal.accent}}:{})}
+                ));
+            } else {
+                paras.push(wmlParagraph([R('')],
+                    {...base,spacing:{before:0,after:afterSpace},
+                     ...(isLast?{borderBottom:{color:pal.accent}}:{})}
+                ));
+            }
+        });
+    });
+
+    // Footer
+    paras.push(wmlParagraph(
+        [R('MCQ Practice Platform',{size:18,color:'A0AEC0',italics:true})],
+        {align:'center',spacing:{before:480,after:0}}
+    ));
+
+    const zipBytes=buildDocx(paras);
+    const blob=new Blob([zipBytes],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`${topicName.replace(/[^a-z0-9]/gi,'_')}_results.docx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+function showMessage(text,type){
+    const m=document.getElementById('message');
+    m.className='message '+type; m.innerHTML=text;
+}
+</script>
+</body>
+</html>
