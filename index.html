@@ -126,6 +126,54 @@
             padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;
             color: #2b6cb0; font-size: 0.95em;
         }
+        /* ── MCQ Selection Panel ── */
+        .selection-panel {
+            background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 12px;
+            padding: 25px; margin-bottom: 30px; display: none;
+        }
+        .selection-panel.show { display: block; }
+        .selection-panel h3 {
+            color: #4a5568; font-size: 1.1em; margin-bottom: 6px;
+        }
+        .mcq-count-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 4px 16px; border-radius: 20px;
+            font-size: 0.95em; font-weight: 700; margin-bottom: 18px;
+        }
+        .sel-mode-row {
+            display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;
+        }
+        .sel-mode-btn {
+            flex: 1; min-width: 120px;
+            background: white; color: #667eea;
+            border: 2px solid #667eea; padding: 10px 18px;
+            border-radius: 8px; font-size: 0.95em; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .sel-mode-btn:hover, .sel-mode-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+        }
+        .range-inputs {
+            display: none; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;
+        }
+        .range-inputs.show { display: flex; }
+        .range-inputs label { margin-bottom: 0; font-size: 0.95em; color: #4a5568; }
+        .range-inputs input[type="number"] {
+            width: 90px; padding: 10px 12px;
+            border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;
+        }
+        .range-hint { font-size: 0.85em; color: #a0aec0; margin-top: 6px; }
+        .quick-ranges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .quick-btn {
+            background: #edf2ff; color: #667eea;
+            border: 1px solid #c3d0ff; padding: 6px 14px;
+            border-radius: 20px; font-size: 0.85em; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .quick-btn:hover { background: #667eea; color: white; }
     </style>
 </head>
 <body>
@@ -133,6 +181,7 @@
         <h1>📋 MCQ Practice Platform <span class="badge">CSV ANSWERS</span></h1>
         <p>Upload your combined MCQ + Answer CSV to start practicing</p>
         <button onclick="window.open('https://dileeshaka-thathsara.github.io/MCQC/', '_blank', 'noopener,noreferrer')">Open MCQ Cleaner</button>
+
     </div>
 
     <div class="container">
@@ -150,6 +199,29 @@
                 <input type="file" id="questionsFile" accept=".csv" onchange="handleFileUpload(event)">
             </div>
             <button onclick="loadMCQs()" style="width:100%;">📚 Load MCQs</button>
+        </div>
+
+        <!-- MCQ Selection Panel — shown after CSV upload -->
+        <div class="selection-panel" id="selectionPanel">
+            <h3>📊 CSV Loaded Successfully</h3>
+            <div class="mcq-count-badge" id="mcqCountBadge">0 MCQs found</div>
+
+            <div style="margin-bottom:14px;">
+                <label style="margin-bottom:8px;">🎯 Which MCQs would you like to attempt?</label>
+                <div class="sel-mode-row">
+                    <button class="sel-mode-btn active" id="btnAll" onclick="setMode('all')">✅ All MCQs</button>
+                    <button class="sel-mode-btn" id="btnRange" onclick="setMode('range')">🔢 Custom Range</button>
+                </div>
+            </div>
+
+            <div class="range-inputs" id="rangeInputs">
+                <label>From MCQ&nbsp;</label>
+                <input type="number" id="rangeFrom" min="1" value="1" oninput="clampRange()">
+                <label>&nbsp;To MCQ&nbsp;</label>
+                <input type="number" id="rangeTo" min="1" value="10" oninput="clampRange()">
+                <div class="range-hint" id="rangeHint"></div>
+            </div>
+            <div class="quick-ranges" id="quickRanges"></div>
         </div>
 
         <div id="message"></div>
@@ -387,7 +459,76 @@ function buildDocx(paragraphs){
    APP LOGIC
    ═══════════════════════════════════════════════════ */
 let questionsData=[], answersData={}, lastEvalResults=[], lastScore={total:0,max:0};
+let allQuestionsData=[]; // full unfiltered set
+let selectionMode='all'; // 'all' or 'range'
 const stemLetters=['A','B','C','D','E'];
+
+/* ── Selection panel logic ── */
+function setMode(mode){
+    selectionMode=mode;
+    document.getElementById('btnAll').classList.toggle('active', mode==='all');
+    document.getElementById('btnRange').classList.toggle('active', mode==='range');
+    document.getElementById('rangeInputs').classList.toggle('show', mode==='range');
+}
+
+function clampRange(){
+    const total=allQuestionsData.length;
+    let from=parseInt(document.getElementById('rangeFrom').value)||1;
+    let to=parseInt(document.getElementById('rangeTo').value)||total;
+    from=Math.max(1,Math.min(from,total));
+    to=Math.max(from,Math.min(to,total));
+    document.getElementById('rangeFrom').value=from;
+    document.getElementById('rangeTo').value=to;
+    document.getElementById('rangeHint').textContent=`Selecting ${to-from+1} MCQ(s) out of ${total}`;
+}
+
+function buildQuickRanges(total){
+    const container=document.getElementById('quickRanges');
+    container.innerHTML='';
+    if(total<=10){return;} // no need for quick ranges if small set
+    const step=10;
+    const label=document.createElement('span');
+    label.style.cssText='font-size:0.85em;color:#718096;font-weight:600;align-self:center;';
+    label.textContent='Quick select: ';
+    container.appendChild(label);
+    for(let s=1;s<=total;s+=step){
+        const e=Math.min(s+step-1,total);
+        const btn=document.createElement('button');
+        btn.className='quick-btn';
+        btn.textContent=`${s}–${e}`;
+        btn.onclick=(()=>{
+            const from=s,to=e;
+            return ()=>{
+                setMode('range');
+                document.getElementById('rangeFrom').value=from;
+                document.getElementById('rangeTo').value=to;
+                clampRange();
+            };
+        })();
+        container.appendChild(btn);
+    }
+}
+
+function showSelectionPanel(){
+    const total=allQuestionsData.length;
+    document.getElementById('mcqCountBadge').textContent=`${total} MCQ${total!==1?'s':''} found`;
+    document.getElementById('rangeFrom').value=1;
+    document.getElementById('rangeTo').value=total;
+    document.getElementById('rangeFrom').max=total;
+    document.getElementById('rangeTo').max=total;
+    document.getElementById('rangeHint').textContent=`Selecting ${total} MCQ(s) out of ${total}`;
+    buildQuickRanges(total);
+    setMode('all');
+    document.getElementById('selectionPanel').classList.add('show');
+}
+
+function getSelectedQuestions(){
+    if(selectionMode==='all') return allQuestionsData;
+    const from=parseInt(document.getElementById('rangeFrom').value)||1;
+    const to=parseInt(document.getElementById('rangeTo').value)||allQuestionsData.length;
+    // filter by position index (1-based) within the list
+    return allQuestionsData.slice(from-1, to);
+}
 
 function handleFileUpload(e){
     const file=e.target.files[0];
@@ -419,7 +560,7 @@ function parseCSV(content){
     }
     if(buf.trim()) rawLines.push(buf);
 
-    questionsData=[]; answersData=[]; answersData={}; let cur=null;
+    allQuestionsData=[]; questionsData=[]; answersData={}; let cur=null;
     for(let i=1;i<rawLines.length;i++){
         const cols=parseLine(rawLines[i]);
         if(cols.length<3) continue;
@@ -430,18 +571,32 @@ function parseCSV(content){
         const tf=(cols[4]||'').trim();
         const expl=(cols[5]||'').trim();
         if(isNaN(mcqNum)) continue;
-        if(type==='Question'){cur={number:mcqNum,question:text,stems:[]};questionsData.push(cur);}
+        if(type==='Question'){cur={number:mcqNum,question:text,stems:[]};allQuestionsData.push(cur);}
         else if(type==='Option'){if(cur&&cur.number===mcqNum)cur.stems.push({number:stemLetters.indexOf(label)+1,letter:label,text});}
         else if(type==='Review'){answersData[`${mcqNum}_${label}`]={answer:tf.charAt(0).toUpperCase()==='T'?'T':'F',explanation:expl};}
     }
-    showMessage(`✅ Loaded ${questionsData.length} MCQ(s) with ${Object.keys(answersData).length} answer(s).`,'success');
+    questionsData=allQuestionsData;
+    showSelectionPanel();
+    showMessage(`✅ Loaded ${allQuestionsData.length} MCQ(s) with ${Object.keys(answersData).length} answer(s). Choose your range below, then click Load MCQs.`,'success');
 }
 
 function loadMCQs(){
     if(!document.getElementById('topicName').value.trim()){showMessage('❌ Please enter a topic name.','error');return;}
-    if(!questionsData.length){showMessage('❌ Please upload the CSV file first.','error');return;}
+    if(!allQuestionsData.length){showMessage('❌ Please upload the CSV file first.','error');return;}
+    clampRange();
+    questionsData=getSelectedQuestions();
+    if(!questionsData.length){showMessage('❌ No MCQs in selected range.','error');return;}
+    // Reset previous results
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('feedback').classList.remove('show');
+    document.getElementById('feedback').innerHTML='';
+    document.getElementById('downloadSection').style.display='none';
+    lastEvalResults=[]; lastScore={total:0,max:0};
     displayMCQs();
-    showMessage('✅ MCQs loaded! Answer each option then click Submit.','success');
+    const rangeInfo=selectionMode==='range'
+        ?` (MCQs ${document.getElementById('rangeFrom').value}–${document.getElementById('rangeTo').value})`
+        :' (All MCQs)';
+    showMessage(`✅ ${questionsData.length} MCQ(s) loaded${rangeInfo}. Answer each option then click Submit.`,'success');
 }
 
 function displayMCQs(){
